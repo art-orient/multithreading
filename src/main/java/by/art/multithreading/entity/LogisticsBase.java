@@ -2,6 +2,8 @@ package by.art.multithreading.entity;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class LogisticsBase {
@@ -21,5 +23,11 @@ public class LogisticsBase {
     currentWeight = new AtomicInteger(maxWeightCapacity / 2);
   }
 
-  //TODO
+  public void processTrucks() {
+    ExecutorService pool = Executors.newFixedThreadPool(terminals.length);
+    for (Truck truck : trucks) {
+      pool.submit(truck);
+    }
+    //TODO
+  }
 }
