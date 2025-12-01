@@ -1,7 +1,10 @@
 package by.art.multithreading;
 
+import by.art.multithreading.entity.Truck;
 import by.art.multithreading.entity.TruckData;
 import by.art.multithreading.exception.LogisticsBaseException;
+import by.art.multithreading.factory.TruckFactory;
+import by.art.multithreading.factory.impl.TruckFactoryImpl;
 import by.art.multithreading.parser.TruckParser;
 import by.art.multithreading.parser.impl.TruckParserImpl;
 import by.art.multithreading.reader.TruckReader;
@@ -17,5 +20,7 @@ public class Main {
     List<String> trucksInfo = reader.readTruckInfo(FILEPATH);
     TruckParser truckParser = new TruckParserImpl();
     List<TruckData> trucksData = truckParser.parse(trucksInfo);
+    TruckFactory factory = new TruckFactoryImpl();
+    List<Truck> trucks = factory.createTrucks(trucksData);
   }
 }

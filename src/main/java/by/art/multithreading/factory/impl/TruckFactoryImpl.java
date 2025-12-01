@@ -19,10 +19,9 @@ public class TruckFactoryImpl implements TruckFactory {
     List<Truck> trucks = new ArrayList<>();
     for (TruckData truckData : trucksData) {
       int id = TruckIdGenerator.generateId();
-
       TruckOperation operation = switch (truckData.operation()) {
-        case "LOAD" -> TruckOperation.LOAD;
         case "UNLOAD" -> TruckOperation.UNLOAD;
+        case "LOAD" -> TruckOperation.LOAD;
         case "UNLOAD-LOAD" -> TruckOperation.UNLOAD_LOAD;
         default -> { logger.warn("incorrect operation - {}", truckData.operation());
           throw new LogisticsBaseException("Unknown operation: " + truckData.operation());
@@ -31,6 +30,8 @@ public class TruckFactoryImpl implements TruckFactory {
       Truck truck = new Truck(id, truckData.brand(), truckData.plateNumber(), truckData.truckCapacity(),
               truckData.cargoUnload(), truckData.cargoLoad(), operation, truckData.isPerishable());
       trucks.add(truck);
+      logger.debug("Truck created - ID = {}, brand - {}, plate number - {}",
+              id, truckData.brand(), truckData.plateNumber());
     }
     return trucks;
   }
