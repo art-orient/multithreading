@@ -1,4 +1,4 @@
 package by.art.multithreading.entity;
 
-public class LogisticBase {
+public class LogisticsBase {
 }
