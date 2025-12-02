@@ -16,11 +16,11 @@ public class Truck implements Runnable {
   private final int cargoUnload;
   private final int cargoLoad;
   private final TruckOperation operation;
-  private final boolean isPerishable;
+  private final boolean perishable;
   private TruckState state;
 
   public Truck(int id, String brand, String plateNumber, int truckCapacity,
-               int cargoUnload, int cargoLoad, TruckOperation operation, boolean isPerishable) {
+               int cargoUnload, int cargoLoad, TruckOperation operation, boolean perishable) {
     this.id = id;
     this.brand = brand;
     this.plateNumber = plateNumber;
@@ -28,7 +28,7 @@ public class Truck implements Runnable {
     this.cargoUnload = cargoUnload;
     this.cargoLoad = cargoLoad;
     this.operation = operation;
-    this.isPerishable = isPerishable;
+    this.perishable = perishable;
     state = TruckState.WAITING;
   }
 
@@ -36,17 +36,20 @@ public class Truck implements Runnable {
   public void run() {
     long start = System.currentTimeMillis();
     log.debug("Truck {} ({} {}) arrives. Operation={}, perishable={}",
-            id, brand, plateNumber, operation, isPerishable);
+            id, brand, plateNumber, operation, perishable);
     state = TruckState.PROCESSING;
     try {
       TimeUnit.SECONDS.sleep(2);
+//      if (truck.getCargoUnload() > truck.getTruckCapacity()) {
+//        throw new LogisticsBaseException("Truck " + truck.getId() + " tries to unload more than capacity!");
+//      }
+
+
     } catch (InterruptedException e) {
       logger.error("Error during truck processing", e);
       Thread.currentThread().interrupt();
     }
     state = TruckState.COMPLETED;
-
-
     long processingTime = (System.currentTimeMillis() - start) / 1000;
     logger.info("Truck with ID = {} is completed in {} seconds", id, processingTime);
   }
@@ -80,15 +83,11 @@ public class Truck implements Runnable {
   }
 
   public boolean isPerishable() {
-    return isPerishable;
+    return perishable;
   }
 
   public TruckState getState() {
     return state;
-  }
-
-  public String getStateName() {
-    return state.name();
   }
 
   public void setState(TruckState state) {
