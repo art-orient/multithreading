@@ -14,15 +14,26 @@ public final class LogisticsBase {
   private final double minLoadFactor;
   private AtomicInteger currentBaseCargoWeight;
 
-  public LogisticsBase(int terminalCount, int baseMaxCapacity) {
+  private LogisticsBase(int terminalCount, int baseMaxCapacity) {
     this.terminals = new Terminal[terminalCount];
-    for (int i = 0; i < terminalCount; i++) {
+    for (int i = 0; i < terminals.length; i++) {
       terminals[i] = new Terminal(i + 1);
     }
     this.baseMaxCapacity = baseMaxCapacity;
     maxLoadFactor = 0.8;
     minLoadFactor = 0.2;
     currentBaseCargoWeight = new AtomicInteger(baseMaxCapacity / 2);
+  }
+
+  private static class Holder {
+    private static LogisticsBase instance;
+  }
+
+  public static LogisticsBase getInstance(int terminalCount, int baseMaxCapacity) {
+    if (Holder.instance == null) {
+      Holder.instance = new LogisticsBase(terminalCount, baseMaxCapacity);
+    }
+    return Holder.instance;
   }
 
   public void processTrucks(List<Truck> trucks) {
@@ -36,8 +47,6 @@ public final class LogisticsBase {
       logger.info("Truck {} ({} {}) started working", truck.getTruckId(),
               truck.getBrand(), truck.getPlateNumber());
     }
-//          updateWeight(truck);
-
   }
 
   public void updateWeight(Truck truck) {

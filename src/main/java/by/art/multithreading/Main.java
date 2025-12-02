@@ -23,8 +23,7 @@ public class Main {
     List<TruckData> trucksData = truckParser.parse(trucksInfo);
     TruckFactory factory = new TruckFactoryImpl();
     List<Truck> trucks = factory.createTrucks(trucksData);
-
-    LogisticsBase logisticsBase = new LogisticsBase(5, 200_000);
+    LogisticsBase logisticsBase = LogisticsBase.getInstance(5, 100000);
     logisticsBase.processTrucks(trucks);
   }
 }
