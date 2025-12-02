@@ -19,7 +19,6 @@ public class Truck implements Runnable {
   private final TruckOperation operation;
   private final boolean perishable;
   private TruckState state;
-  private LogisticsBase logisticsBase;
 
   public Truck(String brand, String plateNumber, int truckCapacity,
                int cargoUnload, int cargoLoad, TruckOperation operation, boolean perishable) {
@@ -36,27 +35,14 @@ public class Truck implements Runnable {
 
   @Override
   public void run() {
-    long start = System.currentTimeMillis();
+    LogisticsBase base = LogisticsBase.getInstance();
+    base.processTruck(this);
+  }
+
+  public void performOperation() throws LogisticsBaseException {
     log.debug("Truck {} ({} {}) arrives. Operation={}, perishable={}",
             truckId, brand, plateNumber, operation, perishable);
-    Terminal terminal = null;
     try {
-      while (terminal == null) {
-        for (Terminal t : logisticsBase.getTerminals()) {
-          if (t.occupyTerminal()) {
-            terminal = t;
-            logger.info("Truck {} occupied terminal {}", truckId, t.getId());
-            setState(TruckState.PROCESSING);
-            break;
-          }
-        }
-        if (terminal == null) {
-          logger.debug("Truck {} is waiting for a free terminal", truckId);
-          TimeUnit.MILLISECONDS.sleep(200);
-        }
-      }
-
-      state = TruckState.PROCESSING;
       switch (operation) {
         case UNLOAD -> {
           if (cargoUnload > truckCapacity) {
@@ -64,8 +50,9 @@ public class Truck implements Runnable {
             throw new LogisticsBaseException(
                     "Truck " + truckId + " unloads more than capacity: " + cargoUnload);
           }
+          long time = calculateProcessingTime(cargoUnload);
           logger.debug("Truck {} unloads {} kg", truckId, cargoUnload);
-          TimeUnit.MILLISECONDS.sleep(300);
+          TimeUnit.MILLISECONDS.sleep(time);
         }
         case LOAD -> {
           if (cargoLoad > truckCapacity) {
@@ -73,29 +60,24 @@ public class Truck implements Runnable {
             throw new LogisticsBaseException(
                     "Truck " + truckId + " loads more than capacity: " + cargoUnload);
           }
+          long time = calculateProcessingTime(cargoLoad);
           logger.info("Truck {} loads {} kg", truckId, cargoLoad);
-          TimeUnit.MILLISECONDS.sleep(300);
+          TimeUnit.MILLISECONDS.sleep(time);
         }
         case UNLOAD_LOAD -> {
           logger.info("Truck {} unloads {} kg and then loads {} kg", truckId, cargoUnload, cargoLoad);
-          TimeUnit.MILLISECONDS.sleep(500);
+          long time = calculateProcessingTime(cargoUnload + cargoLoad);
+          TimeUnit.MILLISECONDS.sleep(time);
+        }
+        default -> {
+          logger.error("Truck {} has unknown operation: {}", truckId, operation);
+          throw new LogisticsBaseException("Unknown truck operation: " + operation);
         }
       }
-      logisticsBase.updateWeight(this);
-    } catch (InterruptedException | LogisticsBaseException e) {
-      logger.error("Truck {} processing was interrupted", truckId, e);
+    } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-    } finally {
-      if (terminal != null) {
-        terminal.releaseTerminal();
-        logger.debug("Terminal {} released", terminal.getId());
-      }
+      logger.error("Truck {} was interrupted", truckId, e);
     }
-    state = TruckState.COMPLETED;
-    long processingTime = (System.currentTimeMillis() - start) / 1000;
-    logger.info("Truck processing with ID = {} took {} minutes", truckId, processingTime);
-    logger.info("Truck {} ({} {}) finished work with terminal {}, state = {}, Current base weight = {}",
-        truckId, brand, plateNumber, terminal.getId(), state, logisticsBase.getCurrentBaseCargoWeight().get());
   }
 
   public int getTruckId() {
@@ -138,7 +120,7 @@ public class Truck implements Runnable {
     this.state = state;
   }
 
-  public void setLogisticsBase(LogisticsBase logisticsBase) {
-    this.logisticsBase = logisticsBase;
+  private long calculateProcessingTime(int weight) {
+    return 100L + (weight / 10);
   }
 }
