@@ -4,11 +4,9 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
-public class LogisticsBase {
+public final class LogisticsBase {
   private static final Logger logger = LogManager.getLogger();
   private final Terminal[] terminals;
   private final int baseMaxCapacity;
@@ -28,19 +26,21 @@ public class LogisticsBase {
   }
 
   public void processTrucks(List<Truck> trucks) {
-    ExecutorService pool = Executors.newFixedThreadPool(terminals.length);
     for (Truck truck : trucks) {
-      pool.execute(() -> {
-        truck.run();
-        updateWeight(truck);
-        logger.info("Truck {} ({} {}) finished. Final state = {}, Current Weight = {}", truck.getId(),
-                truck.getBrand(), truck.getPlateNumber(), truck.getState(), currentBaseCargoWeight.get());
-      });
+      truck.setLogisticsBase(this);
+      Thread thread = new Thread(truck);
+      if (truck.isPerishable()) {
+        thread.setPriority(Thread.MAX_PRIORITY);
+      }
+      thread.start();
+      logger.info("Truck {} ({} {}) started working", truck.getTruckId(),
+              truck.getBrand(), truck.getPlateNumber());
     }
-    pool.shutdown();
+//          updateWeight(truck);
+
   }
 
-  private void updateWeight(Truck truck) {
+  public void updateWeight(Truck truck) {
     if (truck.getCargoUnload() > 0) {
       currentBaseCargoWeight.addAndGet(-truck.getCargoUnload());
     }
@@ -60,5 +60,13 @@ public class LogisticsBase {
                       "CurrentWeight = {}", weight);
       currentBaseCargoWeight.addAndGet(baseMaxCapacity / 3);
     }
+  }
+
+  public Terminal[] getTerminals() {
+    return terminals;
+  }
+
+  public AtomicInteger getCurrentBaseCargoWeight() {
+    return currentBaseCargoWeight;
   }
 }
