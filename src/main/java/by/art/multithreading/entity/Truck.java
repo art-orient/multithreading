@@ -1,7 +1,10 @@
 package by.art.multithreading.entity;
 
+import by.art.multithreading.exception.LogisticsBaseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
+
+import java.util.concurrent.TimeUnit;
 
 public class Truck implements Runnable {
   private static final Logger logger = LogManager.getLogger();
@@ -32,8 +35,16 @@ public class Truck implements Runnable {
   @Override
   public void run() {
     long start = System.currentTimeMillis();
-    log.info("Truck {} [{}] arrives. Operation={}, perishable={}", id, brand, operation, isPerishable);
-    //TODO
+    log.debug("Truck {} ({} {}) arrives. Operation={}, perishable={}",
+            id, brand, plateNumber, operation, isPerishable);
+    state = TruckState.PROCESSING;
+    try {
+      TimeUnit.SECONDS.sleep(2);
+    } catch (InterruptedException e) {
+      logger.error("Error during truck processing", e);
+      Thread.currentThread().interrupt();
+    }
+    state = TruckState.COMPLETED;
 
 
     long processingTime = (System.currentTimeMillis() - start) / 1000;

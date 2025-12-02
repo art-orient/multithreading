@@ -1,5 +1,6 @@
 package by.art.multithreading;
 
+import by.art.multithreading.entity.LogisticsBase;
 import by.art.multithreading.entity.Truck;
 import by.art.multithreading.entity.TruckData;
 import by.art.multithreading.exception.LogisticsBaseException;
@@ -22,5 +23,8 @@ public class Main {
     List<TruckData> trucksData = truckParser.parse(trucksInfo);
     TruckFactory factory = new TruckFactoryImpl();
     List<Truck> trucks = factory.createTrucks(trucksData);
+
+    LogisticsBase logisticsBase = new LogisticsBase(5, 200_000);
+    logisticsBase.processTrucks(trucks);
   }
 }

@@ -1,33 +1,64 @@
 package by.art.multithreading.entity;
 
-import java.util.ArrayList;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
+
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicInteger;
 
 public class LogisticsBase {
+  private static final Logger logger = LogManager.getLogger();
   private final Terminal[] terminals;
   private final int baseMaxCapacity;
-  private final double maxLoadFactor = 0.8;
-  private final double minLoadFactor = 0.2;
-  private AtomicInteger currentWeight;
-  private final List<Truck> trucks = new ArrayList<>();
+  private final double maxLoadFactor;
+  private final double minLoadFactor;
+  private AtomicInteger currentBaseCargoWeight;
 
-  public LogisticsBase(int terminalCount, int maxWeightCapacity) {
+  public LogisticsBase(int terminalCount, int baseMaxCapacity) {
     this.terminals = new Terminal[terminalCount];
     for (int i = 0; i < terminalCount; i++) {
       terminals[i] = new Terminal(i + 1);
     }
-    this.baseMaxCapacity = maxWeightCapacity;
-    currentWeight = new AtomicInteger(maxWeightCapacity / 2);
+    this.baseMaxCapacity = baseMaxCapacity;
+    maxLoadFactor = 0.8;
+    minLoadFactor = 0.2;
+    currentBaseCargoWeight = new AtomicInteger(baseMaxCapacity / 2);
   }
 
-  public void processTrucks() {
+  public void processTrucks(List<Truck> trucks) {
     ExecutorService pool = Executors.newFixedThreadPool(terminals.length);
     for (Truck truck : trucks) {
-      pool.submit(truck);
+      pool.execute(() -> {
+        truck.run();
+        updateWeight(truck);
+        logger.info("Truck {} ({} {}) finished. Final state = {}, Current Weight = {}", truck.getId(),
+                truck.getBrand(), truck.getPlateNumber(), truck.getState(), currentBaseCargoWeight.get());
+      });
     }
-    //TODO
+    pool.shutdown();
+  }
+
+  private void updateWeight(Truck truck) {
+    if (truck.getCargoUnload() > 0) {
+      currentBaseCargoWeight.addAndGet(-truck.getCargoUnload());
+    }
+    if (truck.getCargoLoad() > 0) {
+      currentBaseCargoWeight.addAndGet(truck.getCargoLoad());
+    }
+    checkWeight();
+  }
+
+  private void checkWeight() {
+    int weight = currentBaseCargoWeight.get();
+    if (weight >= baseMaxCapacity * maxLoadFactor) {
+      logger.info("Overload detected! Train dispatched to unload. CurrentWeight = {}", weight);
+      currentBaseCargoWeight.addAndGet(-baseMaxCapacity / 3);
+    } else if (weight <= baseMaxCapacity * minLoadFactor) {
+      logger.info("Too few goods at the base! The train has been dispatched to deliver additional goods. " +
+                      "CurrentWeight = {}", weight);
+      currentBaseCargoWeight.addAndGet(baseMaxCapacity / 3);
+    }
   }
 }
