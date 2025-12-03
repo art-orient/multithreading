@@ -5,6 +5,8 @@ import by.art.multithreading.entity.TruckData;
 import by.art.multithreading.entity.TruckOperation;
 import by.art.multithreading.exception.LogisticsBaseException;
 import by.art.multithreading.factory.TruckFactory;
+import by.art.multithreading.validator.TruckValidator;
+import by.art.multithreading.validator.impl.TruckValidatorImpl;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
@@ -17,7 +19,11 @@ public class TruckFactoryImpl implements TruckFactory {
   @Override
   public List<Truck> createTrucks(List<TruckData> trucksData) throws LogisticsBaseException {
     List<Truck> trucks = new ArrayList<>();
+    TruckValidator validator = new TruckValidatorImpl();
     for (TruckData truckData : trucksData) {
+      if (!validator.validateCargo(truckData)) {
+        continue;
+      }
       TruckOperation operation = switch (truckData.operation().toUpperCase()) {
         case "UNLOAD" -> TruckOperation.UNLOAD;
         case "LOAD" -> TruckOperation.LOAD;
@@ -32,6 +38,7 @@ public class TruckFactoryImpl implements TruckFactory {
       logger.debug("Truck created: brand - {}, plate number - {}",
               truckData.brand(), truckData.plateNumber());
     }
+    logger.info("Created {} trucks", trucks.size());
     return trucks;
   }
 }

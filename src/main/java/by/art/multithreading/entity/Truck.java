@@ -42,31 +42,20 @@ public class Truck implements Runnable {
   public void performOperation() throws LogisticsBaseException {
     log.debug("Truck {} ({} {}) arrives. Operation={}, perishable={}",
             truckId, brand, plateNumber, operation, perishable);
+    long time = calculateProcessingTime(cargoUnload, cargoLoad);
     try {
       switch (operation) {
         case UNLOAD -> {
-          if (cargoUnload > truckCapacity) {
-            logger.warn("Truck {} tries to unload more than capacity!", truckId);
-            throw new LogisticsBaseException(
-                    "Truck " + truckId + " unloads more than capacity: " + cargoUnload);
-          }
-          long time = calculateProcessingTime(cargoUnload);
           logger.debug("Truck {} unloads {} kg", truckId, cargoUnload);
           TimeUnit.MILLISECONDS.sleep(time);
         }
         case LOAD -> {
-          if (cargoLoad > truckCapacity) {
-            logger.warn("Truck {} tries to load more than capacity!", truckId);
-            throw new LogisticsBaseException(
-                    "Truck " + truckId + " loads more than capacity: " + cargoUnload);
-          }
-          long time = calculateProcessingTime(cargoLoad);
           logger.info("Truck {} loads {} kg", truckId, cargoLoad);
           TimeUnit.MILLISECONDS.sleep(time);
         }
         case UNLOAD_LOAD -> {
-          logger.info("Truck {} unloads {} kg and then loads {} kg", truckId, cargoUnload, cargoLoad);
-          long time = calculateProcessingTime(cargoUnload + cargoLoad);
+          logger.info("Truck {} unloads {} kg and then loads {} kg",
+                  truckId, cargoUnload, cargoLoad);
           TimeUnit.MILLISECONDS.sleep(time);
         }
         default -> {
@@ -76,7 +65,7 @@ public class Truck implements Runnable {
       }
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      logger.error("Truck {} was interrupted", truckId, e);
+      logger.error("Truck {} process was interrupted", truckId, e);
     }
   }
 
@@ -120,7 +109,7 @@ public class Truck implements Runnable {
     this.state = state;
   }
 
-  private long calculateProcessingTime(int weight) {
-    return 100L + (weight / 10);
+  private long calculateProcessingTime(int cargoUnload, int cargoLoad) {
+    return (cargoUnload + cargoLoad) / 10 + 100L;
   }
 }

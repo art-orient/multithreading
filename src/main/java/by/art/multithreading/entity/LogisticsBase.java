@@ -45,6 +45,8 @@ public final class LogisticsBase {
       Thread thread = new Thread(truck);
       if (truck.isPerishable()) {
         thread.setPriority(Thread.MAX_PRIORITY);
+      } else {
+        thread.setPriority(Thread.MIN_PRIORITY);
       }
       thread.start();
       logger.info("Truck {} ({} {}) sent for processing",
@@ -83,7 +85,6 @@ public final class LogisticsBase {
         }
       }
       if (terminalForProcess == null) {
-        logger.debug("Truck {} is waiting for a free terminal", truck.getTruckId());
         try {
           TimeUnit.MILLISECONDS.sleep(200);
         } catch (InterruptedException e) {
@@ -110,10 +111,12 @@ public final class LogisticsBase {
     if (weight >= BASE_CAPACITY * MAX_LOAD_FACTOR) {
       logger.info("Overload detected! Train dispatched to unload. Current base weight = {}", weight);
       currentBaseCargoWeight.addAndGet(-BASE_CAPACITY / 3);
+      logger.info("Train took goods. Current base weight = {}", currentBaseCargoWeight.get());
     } else if (weight <= BASE_CAPACITY * MIN_LOAD_FACTOR) {
       logger.info("Too few goods at the base! The train has been dispatched to deliver additional goods. " +
                       "Current base weight = {}", weight);
       currentBaseCargoWeight.addAndGet(BASE_CAPACITY / 3);
+      logger.info("Train delivered goods. Current base weight = {}", currentBaseCargoWeight.get());
     }
   }
 
