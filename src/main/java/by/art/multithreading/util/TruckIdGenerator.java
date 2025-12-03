@@ -11,4 +11,8 @@ public final class TruckIdGenerator {
   public static int generateId() {
     return counter.incrementAndGet();
   }
+
+  public static void reset() {
+    counter.set(0);
+  }
 }
