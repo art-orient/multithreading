@@ -44,6 +44,9 @@ public class Truck implements Runnable {
             truckId, brand, plateNumber, operation, perishable);
     long time = calculateProcessingTime(cargoUnload, cargoLoad);
     try {
+      if (operation == null) {
+        throw new LogisticsBaseException("No operation type for truck " + truckId);
+      }
       switch (operation) {
         case UNLOAD -> {
           logger.debug("Truck {} unloads {} kg", truckId, cargoUnload);
