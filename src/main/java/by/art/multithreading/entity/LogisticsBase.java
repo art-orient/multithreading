@@ -98,10 +98,10 @@ public final class LogisticsBase {
 
   public void updateBaseWeight(Truck truck) {
     if (truck.getCargoUnload() > 0) {
-      currentBaseCargoWeight.addAndGet(-truck.getCargoUnload());
+      currentBaseCargoWeight.addAndGet(truck.getCargoUnload());
     }
     if (truck.getCargoLoad() > 0) {
-      currentBaseCargoWeight.addAndGet(truck.getCargoLoad());
+      currentBaseCargoWeight.addAndGet(-truck.getCargoLoad());
     }
     checkWeight();
   }
