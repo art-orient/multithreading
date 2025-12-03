@@ -11,7 +11,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 public final class LogisticsBase {
   private static final Logger logger = LogManager.getLogger();
   private static final int NUMBER_TERMINALS = 5;
-  private static final int BASE_MAX_CAPACITY = 100_000;
+  private static final int BASE_CAPACITY = 100_000;
   private static final double MAX_LOAD_FACTOR = 0.8;
   private static final double MIN_LOAD_FACTOR = 0.2;
   private final AtomicInteger currentBaseCargoWeight;
@@ -22,7 +22,7 @@ public final class LogisticsBase {
     for (int i = 0; i < terminals.length; i++) {
       terminals[i] = new Terminal(i + 1);
     }
-    currentBaseCargoWeight = new AtomicInteger(BASE_MAX_CAPACITY / 2);
+    currentBaseCargoWeight = new AtomicInteger(BASE_CAPACITY / 2);
   }
 
   private static class Holder {
@@ -34,6 +34,10 @@ public final class LogisticsBase {
       Holder.instance = new LogisticsBase();
     }
     return Holder.instance;
+  }
+
+  public AtomicInteger getCurrentBaseCargoWeight() {
+    return currentBaseCargoWeight;
   }
 
   public void dispatchTrucks(List<Truck> trucks) {
@@ -51,38 +55,47 @@ public final class LogisticsBase {
   public void processTruck(Truck truck) {
     Terminal terminalForProcess = null;
     try {
-      while (terminalForProcess == null) {
-        for (Terminal terminal : terminals) {
-          if (terminal.occupyTerminal()) {
-            terminalForProcess = terminal;
-            logger.debug("Truck {} ({} {}) has occupied the terminal {}", truck.getTruckId(), truck.getBrand(),
-                    truck.getPlateNumber(), terminalForProcess.getId());
-            truck.setState(TruckState.PROCESSING);
-            break;
-          }
-        }
-        if (terminalForProcess == null) {
-          TimeUnit.MILLISECONDS.sleep(200);
-        }
-      }
+      terminalForProcess = acquireTerminal(truck);
       truck.performOperation();
-      updateWeight(truck);
+      updateBaseWeight(truck);
       logger.info("Truck {} ({} {}) finished work with terminal {}, state = {}, Current base weight = {}",
-              truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(), terminalForProcess.getId(),
-              truck.getState(), getCurrentBaseCargoWeight().get());
+              truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(),
+              terminalForProcess.getId(), truck.getState(), getCurrentBaseCargoWeight().get());
       truck.setState(TruckState.COMPLETED);
-    } catch (InterruptedException | LogisticsBaseException e) {
+    } catch (LogisticsBaseException e) {
       Thread.currentThread().interrupt();
-      logger.error("Truck {} was interrupted", truck.getTruckId(), e);
+      logger.error("Truck {} process was interrupted", truck.getTruckId(), e);
     } finally {
-      if (terminalForProcess != null) {
-        terminalForProcess.releaseTerminal();
-        logger.debug("Terminal {} released", terminalForProcess.getId());
-      }
+      leaveTerminal(terminalForProcess);
     }
   }
 
-  public void updateWeight(Truck truck) {
+  private Terminal acquireTerminal(Truck truck) {
+    Terminal terminalForProcess = null;
+    while (terminalForProcess == null) {
+      for (Terminal terminal : terminals) {
+        if (terminal.occupyTerminal()) {
+          terminalForProcess = terminal;
+          logger.debug("Truck {} ({} {}) has occupied terminal {}",
+                  truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(), terminal.getId());
+          truck.setState(TruckState.PROCESSING);
+          break;
+        }
+      }
+      if (terminalForProcess == null) {
+        logger.debug("Truck {} is waiting for a free terminal", truck.getTruckId());
+        try {
+          TimeUnit.MILLISECONDS.sleep(200);
+        } catch (InterruptedException e) {
+          Thread.currentThread().interrupt();
+          logger.error("Truck {} process was interrupted", truck.getTruckId(), e);
+        }
+      }
+    }
+    return terminalForProcess;
+  }
+
+  public void updateBaseWeight(Truck truck) {
     if (truck.getCargoUnload() > 0) {
       currentBaseCargoWeight.addAndGet(-truck.getCargoUnload());
     }
@@ -94,17 +107,20 @@ public final class LogisticsBase {
 
   private void checkWeight() {
     int weight = currentBaseCargoWeight.get();
-    if (weight >= BASE_MAX_CAPACITY * MAX_LOAD_FACTOR) {
-      logger.info("Overload detected! Train dispatched to unload. CurrentWeight = {}", weight);
-      currentBaseCargoWeight.addAndGet(-BASE_MAX_CAPACITY / 3);
-    } else if (weight <= BASE_MAX_CAPACITY * MIN_LOAD_FACTOR) {
+    if (weight >= BASE_CAPACITY * MAX_LOAD_FACTOR) {
+      logger.info("Overload detected! Train dispatched to unload. Current base weight = {}", weight);
+      currentBaseCargoWeight.addAndGet(-BASE_CAPACITY / 3);
+    } else if (weight <= BASE_CAPACITY * MIN_LOAD_FACTOR) {
       logger.info("Too few goods at the base! The train has been dispatched to deliver additional goods. " +
-                      "CurrentWeight = {}", weight);
-      currentBaseCargoWeight.addAndGet(BASE_MAX_CAPACITY / 3);
+                      "Current base weight = {}", weight);
+      currentBaseCargoWeight.addAndGet(BASE_CAPACITY / 3);
     }
   }
 
-  public AtomicInteger getCurrentBaseCargoWeight() {
-    return currentBaseCargoWeight;
+  private void leaveTerminal(Terminal terminal) {
+    if (terminal != null) {
+      terminal.releaseTerminal();
+      logger.debug("Terminal {} released", terminal.getId());
+    }
   }
 }
