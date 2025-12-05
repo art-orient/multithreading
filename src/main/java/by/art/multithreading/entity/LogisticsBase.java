@@ -4,9 +4,11 @@ import by.art.multithreading.exception.LogisticsBaseException;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.ArrayDeque;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 public final class LogisticsBase {
   private static final Logger logger = LogManager.getLogger();
@@ -15,12 +17,13 @@ public final class LogisticsBase {
   private static final double MAX_LOAD_FACTOR = 0.8;
   private static final double MIN_LOAD_FACTOR = 0.2;
   private final AtomicInteger currentBaseCargoWeight;
-  private final Terminal[] terminals;
+  private final ArrayDeque<Terminal> terminals;
+  private final ReentrantLock lock = new ReentrantLock();
 
   private LogisticsBase() {
-    this.terminals = new Terminal[NUMBER_TERMINALS];
-    for (int i = 0; i < terminals.length; i++) {
-      terminals[i] = new Terminal(i + 1);
+    this.terminals = new ArrayDeque<>(NUMBER_TERMINALS);
+    for (int i = 0; i < NUMBER_TERMINALS; i++) {
+      terminals.offer(new Terminal(i + 1));
     }
     currentBaseCargoWeight = new AtomicInteger(BASE_CAPACITY / 2);
   }
@@ -36,18 +39,10 @@ public final class LogisticsBase {
     return Holder.instance;
   }
 
-  public AtomicInteger getCurrentBaseCargoWeight() {
-    return currentBaseCargoWeight;
-  }
-
   public void dispatchTrucks(List<Truck> trucks) {
     for (Truck truck : trucks) {
       Thread thread = new Thread(truck);
-      if (truck.isPerishable()) {
-        thread.setPriority(Thread.MAX_PRIORITY);
-      } else {
-        thread.setPriority(Thread.MIN_PRIORITY);
-      }
+      thread.setPriority(truck.isPerishable() ? Thread.MAX_PRIORITY : Thread.MIN_PRIORITY);
       thread.start();
       logger.info("Truck {} ({} {}) sent for processing",
               truck.getTruckId(), truck.getBrand(), truck.getPlateNumber());
@@ -62,7 +57,7 @@ public final class LogisticsBase {
       updateBaseWeight(truck);
       logger.info("Truck {} ({} {}) finished work with terminal {}, state = {}, Current base weight = {}",
               truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(),
-              terminalForProcess.getId(), truck.getState(), getCurrentBaseCargoWeight().get());
+              terminalForProcess.id(), truck.getState(), getCurrentBaseCargoWeight().get());
       truck.setState(TruckState.COMPLETED);
     } catch (LogisticsBaseException e) {
       Thread.currentThread().interrupt();
@@ -75,21 +70,23 @@ public final class LogisticsBase {
   private Terminal acquireTerminal(Truck truck) {
     Terminal terminalForProcess = null;
     while (terminalForProcess == null) {
-      for (Terminal terminal : terminals) {
-        if (terminal.occupyTerminal()) {
-          terminalForProcess = terminal;
+      lock.lock();
+      try {
+        terminalForProcess = terminals.poll(); // взять свободный терминал
+        if (terminalForProcess != null) {
           logger.debug("Truck {} ({} {}) has occupied terminal {}",
-                  truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(), terminal.getId());
+                  truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(), terminalForProcess.id());
           truck.setState(TruckState.PROCESSING);
-          break;
         }
+      } finally {
+        lock.unlock();
       }
       if (terminalForProcess == null) {
         try {
           TimeUnit.MILLISECONDS.sleep(200);
         } catch (InterruptedException e) {
           Thread.currentThread().interrupt();
-          logger.error("Truck {} process was interrupted", truck.getTruckId(), e);
+          logger.error("Truck {} process was interrupted while waiting for terminal", truck.getTruckId(), e);
         }
       }
     }
@@ -122,8 +119,17 @@ public final class LogisticsBase {
 
   private void leaveTerminal(Terminal terminal) {
     if (terminal != null) {
-      terminal.releaseTerminal();
-      logger.debug("Terminal {} released", terminal.getId());
+      lock.lock();
+      try {
+        terminals.offer(terminal);
+      } finally {
+        lock.unlock();
+      }
+      logger.debug("Terminal {} released", terminal.id());
     }
+  }
+
+  public AtomicInteger getCurrentBaseCargoWeight() {
+    return currentBaseCargoWeight;
   }
 }

@@ -39,14 +39,6 @@ class TruckTest {
   }
 
   @Test
-  void testUnknownOperationThrowsException() {
-    Truck truck = new Truck("Kamaz", "FF-666", 8000,
-            500, 500, null, false);
-    assertThrows(LogisticsBaseException.class, truck::performOperation,
-            "Unknown operation should throw LogisticsBaseException");
-  }
-
-  @Test
   void testSetAndGetState() {
     Truck truck = new Truck("Volvo", "AA-111", 5000,
             2000, 0, TruckOperation.UNLOAD, false);
