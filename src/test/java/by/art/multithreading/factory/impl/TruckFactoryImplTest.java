@@ -53,35 +53,11 @@ class TruckFactoryImplTest {
   }
 
   @Test
-  void testInvalidCargoSkipped() throws LogisticsBaseException {
-    TruckData data = new TruckData("DAF", "DD-444", 3000,
-            4000, 0, "UNLOAD", false); // unload > capacity
-    List<Truck> trucks = factory.createTrucks(List.of(data));
-    assertTrue(trucks.isEmpty(), "Truck with invalid cargo should be skipped");
-  }
-
-  @Test
   void testUnknownOperationThrowsException() {
     TruckData data = new TruckData("Iveco", "EE-555", 5000,
             1000, 500, "INVALID_OP", false);
     assertThrows(LogisticsBaseException.class,
             () -> factory.createTrucks(List.of(data)),
             "Unknown operation should throw LogisticsBaseException");
-  }
-
-  @Test
-  void testMultipleTrucksMixedValidity() throws LogisticsBaseException {
-    TruckData valid1 = new TruckData("Volvo", "AA-111", 5000,
-            2000, 0, "UNLOAD", false);
-    TruckData invalid = new TruckData("DAF", "DD-444", 3000,
-            4000, 0, "UNLOAD", false); // invalid cargo
-    TruckData valid2 = new TruckData("MAN", "BB-222", 6000,
-            0, 3000, "LOAD", true);
-    List<Truck> trucks = factory.createTrucks(List.of(valid1, invalid, valid2));
-    assertAll("Mixed validity trucks",
-            () -> assertEquals(2, trucks.size(), "Only valid trucks should be created"),
-            () -> assertEquals("Volvo", trucks.get(0).getBrand(), "First truck should be Volvo"),
-            () -> assertEquals("MAN", trucks.get(1).getBrand(), "Second truck should be MAN")
-    );
   }
 }

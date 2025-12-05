@@ -9,7 +9,6 @@ import java.util.concurrent.TimeUnit;
 
 public class Truck implements Runnable {
   private static final Logger logger = LogManager.getLogger();
-  private static final Logger log = LogManager.getLogger();
   private final int truckId;
   private final String brand;
   private final String plateNumber;
@@ -40,7 +39,7 @@ public class Truck implements Runnable {
   }
 
   public void performOperation() throws LogisticsBaseException {
-    log.debug("Truck {} ({} {}) arrives. Operation={}, perishable={}",
+    logger.debug("Truck {} ({} {}) arrives. Operation={}, perishable={}",
             truckId, brand, plateNumber, operation, perishable);
     long time = calculateProcessingTime(cargoUnload, cargoLoad);
     try {
