@@ -26,17 +26,15 @@ public final class LogisticsBase {
       terminals.offer(new Terminal(i + 1));
     }
     currentBaseCargoWeight = new AtomicInteger(BASE_CAPACITY / 2);
+    logger.debug("Initialized terminals: {}", terminals);
   }
 
   private static class Holder {
-    private static LogisticsBase instance;
+    private static final LogisticsBase INSTANCE = new LogisticsBase();
   }
 
   public static LogisticsBase getInstance() {
-    if (Holder.instance == null) {
-      Holder.instance = new LogisticsBase();
-    }
-    return Holder.instance;
+    return Holder.INSTANCE;
   }
 
   public void processTruck(Truck truck) {
@@ -65,8 +63,8 @@ public final class LogisticsBase {
         terminalAvailable.await();
       }
       Terminal terminal = terminals.poll();
-      logger.debug("Truck {} ({} {}) has occupied terminal {}",
-              truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(), terminal.id());
+      logger.debug("Truck {} occupied terminal {}. Free terminals left: {}. Queue={}",
+              truck.getTruckId(), terminal.id(), terminals.size(), terminals);
       truck.setState(TruckState.PROCESSING);
       return terminal;
     } catch (InterruptedException e) {
@@ -106,7 +104,7 @@ public final class LogisticsBase {
     if (terminal != null) {
       lock.lock();
       try {
-        terminals.offer(terminal);
+        terminals.addFirst(terminal);
         terminalAvailable.signal();
         logger.debug("Terminal {} released", terminal.id());
       } finally {

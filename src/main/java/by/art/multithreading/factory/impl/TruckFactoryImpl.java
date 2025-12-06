@@ -3,6 +3,7 @@ package by.art.multithreading.factory.impl;
 import by.art.multithreading.entity.Truck;
 import by.art.multithreading.entity.TruckData;
 import by.art.multithreading.entity.TruckOperation;
+import by.art.multithreading.entity.TruckPerishableComparator;
 import by.art.multithreading.exception.LogisticsBaseException;
 import by.art.multithreading.factory.TruckFactory;
 import org.apache.logging.log4j.LogManager;
@@ -32,6 +33,7 @@ public class TruckFactoryImpl implements TruckFactory {
       logger.debug("Truck created: brand - {}, plate number - {}",
               truckData.brand(), truckData.plateNumber());
     }
+    trucks.sort(new TruckPerishableComparator());
     logger.info("Created {} trucks", trucks.size());
     return trucks;
   }

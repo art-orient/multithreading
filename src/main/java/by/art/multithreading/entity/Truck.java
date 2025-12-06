@@ -5,6 +5,7 @@ import by.art.multithreading.util.TruckIdGenerator;
 import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
+import java.util.StringJoiner;
 import java.util.concurrent.TimeUnit;
 
 public class Truck implements Runnable {
@@ -110,5 +111,50 @@ public class Truck implements Runnable {
 
   private long calculateProcessingTime(int cargoUnload, int cargoLoad) {
     return (cargoUnload + cargoLoad) / 10 + 100L;
+  }
+
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) return true;
+    if (o == null || getClass() != o.getClass()) return false;
+    Truck truck = (Truck) o;
+    return truckId == truck.truckId
+            && truckCapacity == truck.truckCapacity
+            && cargoUnload == truck.cargoUnload
+            && cargoLoad == truck.cargoLoad
+            && perishable == truck.perishable
+            && brand.equals(truck.brand)
+            && plateNumber.equals(truck.plateNumber)
+            && operation == truck.operation
+            && state == truck.state;
+  }
+
+  @Override
+  public int hashCode() {
+    int result = truckId;
+    result = 31 * result + brand.hashCode();
+    result = 31 * result + plateNumber.hashCode();
+    result = 31 * result + truckCapacity;
+    result = 31 * result + cargoUnload;
+    result = 31 * result + cargoLoad;
+    result = 31 * result + operation.hashCode();
+    result = 31 * result + (perishable ? 1 : 0);
+    result = 31 * result + state.hashCode();
+    return result;
+  }
+
+  @Override
+  public String toString() {
+    return new StringJoiner(", ", Truck.class.getSimpleName() + "[", "]")
+            .add("truckId=" + truckId)
+            .add("brand='" + brand + "'")
+            .add("plateNumber='" + plateNumber + "'")
+            .add("truckCapacity=" + truckCapacity)
+            .add("cargoUnload=" + cargoUnload)
+            .add("cargoLoad=" + cargoLoad)
+            .add("operation=" + operation)
+            .add("perishable=" + perishable)
+            .add("state=" + state)
+            .toString();
   }
 }

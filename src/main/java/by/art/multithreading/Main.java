@@ -21,10 +21,19 @@ public class Main {
     List<TruckData> trucksData = truckParser.parse(trucksInfo);
     TruckFactory factory = new TruckFactoryImpl();
     List<Truck> trucks = factory.createTrucks(trucksData);
-    for (Truck truck : trucks) {
-      Thread thread = new Thread(truck);
-      thread.setPriority(truck.isPerishable() ? Thread.MAX_PRIORITY : Thread.MIN_PRIORITY);
-      thread.start();
-    }
+    trucks.stream()
+            .filter(Truck::isPerishable)
+            .forEach(truck -> {
+              Thread thread = new Thread(truck);
+              thread.setPriority(Thread.MAX_PRIORITY);
+              thread.start();
+            });
+    trucks.stream()
+            .filter(truck -> !truck.isPerishable())
+            .forEach(truck -> {
+              Thread thread = new Thread(truck);
+              thread.setPriority(Thread.MIN_PRIORITY);
+              thread.start();
+            });
   }
 }
