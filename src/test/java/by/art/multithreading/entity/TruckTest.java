@@ -1,6 +1,5 @@
 package by.art.multithreading.entity;
 
-import by.art.multithreading.exception.LogisticsBaseException;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;

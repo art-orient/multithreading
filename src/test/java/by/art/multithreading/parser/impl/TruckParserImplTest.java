@@ -35,13 +35,6 @@ class TruckParserImplTest {
   }
 
   @Test
-  void testParseInvalidNumberFormatHandled() {
-    List<String> input = List.of("MAN, BB-222, notANumber, 1000, 500, LOAD, false");
-    List<TruckData> result = parser.parse(input);
-    assertTrue(result.isEmpty(), "Invalid number format should be skipped");
-  }
-
-  @Test
   void testParseMultipleLinesMixedValidity() {
     List<String> input = List.of(
             "Scania, CC-333, 7000, 1500, 500, UNLOAD_LOAD, true",

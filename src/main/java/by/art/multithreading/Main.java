@@ -1,6 +1,5 @@
 package by.art.multithreading;
 
-import by.art.multithreading.entity.LogisticsBase;
 import by.art.multithreading.entity.Truck;
 import by.art.multithreading.entity.TruckData;
 import by.art.multithreading.exception.LogisticsBaseException;
@@ -10,7 +9,6 @@ import by.art.multithreading.parser.TruckParser;
 import by.art.multithreading.parser.impl.TruckParserImpl;
 import by.art.multithreading.reader.TruckReader;
 import by.art.multithreading.reader.impl.TruckReaderImpl;
-
 import java.util.List;
 
 public class Main {
@@ -23,7 +21,10 @@ public class Main {
     List<TruckData> trucksData = truckParser.parse(trucksInfo);
     TruckFactory factory = new TruckFactoryImpl();
     List<Truck> trucks = factory.createTrucks(trucksData);
-    LogisticsBase base = LogisticsBase.getInstance();
-    base.dispatchTrucks(trucks);
+    for (Truck truck : trucks) {
+      Thread thread = new Thread(truck);
+      thread.setPriority(truck.isPerishable() ? Thread.MAX_PRIORITY : Thread.MIN_PRIORITY);
+      thread.start();
+    }
   }
 }

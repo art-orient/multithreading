@@ -5,9 +5,8 @@ import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 
 import java.util.ArrayDeque;
-import java.util.List;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
 
 public final class LogisticsBase {
@@ -19,6 +18,7 @@ public final class LogisticsBase {
   private final AtomicInteger currentBaseCargoWeight;
   private final ArrayDeque<Terminal> terminals;
   private final ReentrantLock lock = new ReentrantLock();
+  private final Condition terminalAvailable = lock.newCondition();
 
   private LogisticsBase() {
     this.terminals = new ArrayDeque<>(NUMBER_TERMINALS);
@@ -39,26 +39,16 @@ public final class LogisticsBase {
     return Holder.instance;
   }
 
-  public void dispatchTrucks(List<Truck> trucks) {
-    for (Truck truck : trucks) {
-      Thread thread = new Thread(truck);
-      thread.setPriority(truck.isPerishable() ? Thread.MAX_PRIORITY : Thread.MIN_PRIORITY);
-      thread.start();
-      logger.info("Truck {} ({} {}) sent for processing",
-              truck.getTruckId(), truck.getBrand(), truck.getPlateNumber());
-    }
-  }
-
   public void processTruck(Truck truck) {
     Terminal terminalForProcess = null;
     try {
       terminalForProcess = acquireTerminal(truck);
       truck.performOperation();
       updateBaseWeight(truck);
+      truck.setState(TruckState.COMPLETED);
       logger.info("Truck {} ({} {}) finished work with terminal {}, state = {}, Current base weight = {}",
               truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(),
               terminalForProcess.id(), truck.getState(), getCurrentBaseCargoWeight().get());
-      truck.setState(TruckState.COMPLETED);
     } catch (LogisticsBaseException e) {
       Thread.currentThread().interrupt();
       logger.error("Truck {} process was interrupted", truck.getTruckId(), e);
@@ -67,30 +57,25 @@ public final class LogisticsBase {
     }
   }
 
-  private Terminal acquireTerminal(Truck truck) {
-    Terminal terminalForProcess = null;
-    while (terminalForProcess == null) {
-      lock.lock();
-      try {
-        terminalForProcess = terminals.poll(); // взять свободный терминал
-        if (terminalForProcess != null) {
-          logger.debug("Truck {} ({} {}) has occupied terminal {}",
-                  truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(), terminalForProcess.id());
-          truck.setState(TruckState.PROCESSING);
-        }
-      } finally {
-        lock.unlock();
+  private Terminal acquireTerminal(Truck truck) throws LogisticsBaseException {
+    lock.lock();
+    try {
+      while (terminals.isEmpty()) {
+        logger.info("No free terminals. Truck {} is waiting", truck.getTruckId());
+        terminalAvailable.await();
       }
-      if (terminalForProcess == null) {
-        try {
-          TimeUnit.MILLISECONDS.sleep(200);
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          logger.error("Truck {} process was interrupted while waiting for terminal", truck.getTruckId(), e);
-        }
-      }
+      Terminal terminal = terminals.poll();
+      logger.debug("Truck {} ({} {}) has occupied terminal {}",
+              truck.getTruckId(), truck.getBrand(), truck.getPlateNumber(), terminal.id());
+      truck.setState(TruckState.PROCESSING);
+      return terminal;
+    } catch (InterruptedException e) {
+      Thread.currentThread().interrupt();
+      logger.error("Truck {} process was interrupted while waiting for terminal", truck.getTruckId(), e);
+      throw new LogisticsBaseException("Truck process was interrupted while waiting for terminal", e);
+    } finally {
+      lock.unlock();
     }
-    return terminalForProcess;
   }
 
   public void updateBaseWeight(Truck truck) {
@@ -122,10 +107,11 @@ public final class LogisticsBase {
       lock.lock();
       try {
         terminals.offer(terminal);
+        terminalAvailable.signal();
+        logger.debug("Terminal {} released", terminal.id());
       } finally {
         lock.unlock();
       }
-      logger.debug("Terminal {} released", terminal.id());
     }
   }
 
