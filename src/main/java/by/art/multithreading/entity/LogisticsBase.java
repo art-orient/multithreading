@@ -40,7 +40,10 @@ public final class LogisticsBase {
   public void processTruck(Truck truck) {
     Terminal terminalForProcess = null;
     try {
-      terminalForProcess = acquireTerminal(truck);
+      terminalForProcess = captureTerminal();
+      truck.setState(TruckState.PROCESSING);
+      logger.debug("Truck {} occupied terminal {}. Free terminals left: {}. Queue={}",
+              truck.getTruckId(), terminalForProcess.id(), terminals.size(), terminals);
       truck.performOperation();
       updateBaseWeight(truck);
       truck.setState(TruckState.COMPLETED);
@@ -55,21 +58,17 @@ public final class LogisticsBase {
     }
   }
 
-  private Terminal acquireTerminal(Truck truck) throws LogisticsBaseException {
+  private Terminal captureTerminal() throws LogisticsBaseException {
     lock.lock();
     try {
       while (terminals.isEmpty()) {
-        logger.info("No free terminals. Truck {} is waiting", truck.getTruckId());
+        logger.info("No free terminals");
         terminalAvailable.await();
       }
-      Terminal terminal = terminals.poll();
-      logger.debug("Truck {} occupied terminal {}. Free terminals left: {}. Queue={}",
-              truck.getTruckId(), terminal.id(), terminals.size(), terminals);
-      truck.setState(TruckState.PROCESSING);
-      return terminal;
+      return terminals.poll();
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
-      logger.error("Truck {} process was interrupted while waiting for terminal", truck.getTruckId(), e);
+      logger.error("Terminal capturing was interrupted while waiting for terminal", e);
       throw new LogisticsBaseException("Truck process was interrupted while waiting for terminal", e);
     } finally {
       lock.unlock();
